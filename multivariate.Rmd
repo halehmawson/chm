@@ -1,0 +1,92 @@
+---
+title: "multivariate"
+author: "Haleh Mawson"
+date: "2025-04-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Intro to multivariate statistics ##
+
+```{r packages}
+library(Rmisc) #useful all-around package
+library(tidyverse) #contains ggplot2, dplyr, etc.
+library(vegan) #multivariate stats package
+library(labdsv) #community ecology
+```
+
+## non-metric multidimensional scaling ##
+
+If you have subsampled your true replicates, it is best to either sum or average the subsamples to avoid pseudoreplication. Random effects are not as easy in multivariate analyses as they are in GLMs, although you can restrict permutations in certain ways if need be.
+```{r subplot summarizing}
+data.sum <- data %>% 
+  group_by(true_replicate_factors) %>% #groups you want to summarize
+  summarize_at(vars(start_col:end_col), sum) %>% #columns that need to be summarized, often abundances
+  ungroup() #removes grouping
+```
+
+The data then need to be converted into a distance matrix.
+```{r community matrix}
+dat.resp <- dat.sum %>% 
+  select(start_col:end_col) %>% #just the species abundances
+  vegtab(minval = 0.05 * nrow(dat.sum)) %>% # Remove rare species
+  decostand("max") #relativize by max so that responses are on equal scales
+
+dat.dist <- vegdist(dat.resp) #convert to Bray Curtis distance measure
+```
+ 
+```{r NMDS}
+set.seed(42) #same result every run
+dat.nmds <- metaMDS(comm = dat.dist, 
+                    autotransform = FALSE,
+                    k = 3, #three dimensional solution
+                    maxit = 300, #maximum number of iterations
+                    #to find local minimum
+                    try = 40, #minimum number of tries 
+                    trymax = 100) #maximum number of tries
+                    #to find global minimum
+print(dat.nmds)
+```
+The axes of an NMDS plot are unitless and purely relative. The interpretation is simple and straightforward as a result: two points that are closer to each other are more similar, two points far away are less similar.  
+
+* Stress: 
+  + < 0.05: Excellent representation, can be interpreted with confidence
+  + < 0.10: Good representation
+  + < 0.20: Good for general trends, but the details may be unreliable
+  + > 0.20: not especially reliable
+  
+To graph and interpret the NMDS results, it's best to add back in your explanatory variables. 
+
+```{r attach explanatory variables to NMDS points}
+dat.points <- data.frame(dat.nmds$points) 
+dat.exp <- dat.sum %>% select(exp_var1, exp_var2)
+dat.inf <- cbind(dat.exp, dat.points)
+#the two dataframes should still be the same length
+```
+
+```{r plot NMDS}
+#plotting the first two axes of the ordination
+ggplot(data = dat.inf,
+       aes(x = MDS1, #NMDS axis 1
+           y = MDS2, #NMDS axis 2
+           color = exp_var1,
+           shape = exp_var2)) + #first 2 most important explanatory vars
+  geom_point(cex = 3) + #bump up the point size
+  theme_bw() + #just a nice theme
+  #then remove axis labels to prevent misinterpretation
+  theme(axis.title = element_blank(),
+        axis.ticks = element_blank(),
+        axis.text = element_blank(),
+        plot.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+  labs(caption = "Stress = 0.11, k = 3") #add in label with key info
+  #helps show how confident we can be about any inferences from the graph
+```
+
+## PERMANOVA ##
+
+## principle components analysis ##
