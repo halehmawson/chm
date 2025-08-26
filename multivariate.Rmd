@@ -38,8 +38,10 @@ dat.resp <- dat.sum %>%
 dat.dist <- vegdist(dat.resp) #convert to Bray Curtis distance measure
 ```
  
+Then run the NMDS itself
 ```{r NMDS}
 set.seed(42) #same result every run
+#random permutations would give slightly different results each time
 dat.nmds <- metaMDS(comm = dat.dist, 
                     autotransform = FALSE,
                     k = 3, #three dimensional solution
@@ -67,6 +69,7 @@ dat.inf <- cbind(dat.exp, dat.points)
 #the two dataframes should still be the same length
 ```
 
+You can create a clean plot where the distance between points corresponds (more or less) to the degree of difference between rows/plots/sites/insert replicate type here.
 ```{r plot NMDS}
 #plotting the first two axes of the ordination
 ggplot(data = dat.inf,
@@ -88,5 +91,12 @@ ggplot(data = dat.inf,
 ```
 
 ## PERMANOVA ##
+
+A PERMANOVA is structured the same as ANOVA, but relies on random permutations to test significance. There are more adjustable bells and whistles in the basic `adonis2` function in `vegan`, such as controlling the number of permutations, but these are the main components.
+```{r basic permanova}
+set.seed(42) #again, set seed to ensure your results are the same each time
+per.results <- adonis2(dat.dist ~ Treatment * Factor, data = dat.resp)
+per.results
+```
 
 ## principle components analysis ##
